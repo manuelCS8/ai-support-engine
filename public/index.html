@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Support Engine</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><span class="brand">AI / SUPPORT ENGINE</span><span class="badge">Prototipo · Equipo de soporte</span></header>
+    <section class="intro"><p class="eyebrow">DE LA SOLICITUD A LA ACCIÓN</p><h1>Entiende el problema.<br><span>Prioriza la respuesta.</span></h1><p>Clasifica solicitudes con reglas tradicionales o inteligencia artificial generativa. Compara categoría, prioridad y revisión humana en un solo lugar.</p></section>
+    <div class="workspace">
+      <section class="panel"><h2>Analizar una solicitud</h2><p class="muted">Describe lo que sucede y a quién afecta.</p>
+        <form id="analyze-form">
+          <label for="message">Mensaje de soporte</label>
+          <textarea id="message" name="message" maxlength="5000" rows="7" required placeholder="Ej. No puedo iniciar sesión en mi cuenta desde esta mañana."></textarea>
+          <div class="meta"><span>No incluyas contraseñas ni información sensible.</span><span id="count">0 / 5000</span></div>
+          <label for="mode">Motor de análisis</label>
+          <select id="mode" name="mode"><option value="both">Comparar ambos motores</option><option value="traditional">Tradicional · reglas</option><option value="generative">Generativo · Ollama</option></select>
+          <button id="submit" type="submit">Analizar solicitud <span aria-hidden="true">↗</span></button>
+        </form>
+        <div class="examples"><p>Prueba con un ejemplo</p><button type="button" data-example="No puedo iniciar sesión en mi cuenta">Acceso</button><button type="button" data-example="La aplicación se cierra al guardar un documento">Error</button><button type="button" data-example="Me gustaría agregar modo oscuro">Mejora</button><button type="button" data-example="Detecté una fuga de datos de clientes">Seguridad</button></div>
+      </section>
+      <section class="results" aria-live="polite" aria-busy="false" id="results"><div class="empty"><span class="symbol" aria-hidden="true">✳</span><h2>Una solicitud, dos perspectivas.</h2><p>Los resultados aparecerán aquí. El motor tradicional funciona sin conexión; el generativo necesita Ollama y un modelo descargado.</p></div></section>
+    </div>
+    <footer><span>ACCESS · BUG · FEATURE · SECURITY</span><span>Los posibles incidentes de seguridad requieren revisión humana.</span></footer>
+  </main>
+</body>
+</html>

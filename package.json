@@ -1,0 +1,12 @@
+{
+  "name": "ai-support-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prototipo de soporte con reglas e IA generativa real mediante Ollama",
+  "engines": { "node": ">=22.9" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "node --test tests/*.test.cjs",
+    "compare": "node --env-file-if-exists=.env scripts/compare.js"
+  }
+}

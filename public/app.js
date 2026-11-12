@@ -38,7 +38,7 @@ async function analyze(mode, text) {
   } catch (error) {
     card.classList.add('error');
     card.replaceChildren(element('h2', title), element('p', error.message));
-    if (mode === 'generative') card.append(element('p', 'Inicia Ollama y descarga el modelo indicado en el README. El motor tradicional sigue disponible.'));
+    if (mode === 'generative') card.append(element('p', 'Revisa la configuración de Gemini en el servidor según el README. El motor tradicional sigue disponible.'));
   }
 }
 

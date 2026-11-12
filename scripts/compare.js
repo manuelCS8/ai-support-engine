@@ -33,9 +33,9 @@ async function main() {
   const out = path.join(__dirname, '..', 'results');
   await fs.mkdir(out, { recursive: true });
   const conclusion = summary.generative.completed !== cases.length
-    ? 'La evaluación generativa está incompleta por errores del proveedor. No se puede determinar qué motor es mejor hasta ejecutar todos los casos con Ollama y el modelo disponibles. Las pruebas con dobles no cuentan como evidencia generativa real.'
+    ? 'La evaluación generativa está incompleta por errores del proveedor. No se puede determinar qué motor es mejor hasta ejecutar todos los casos con Gemini y una clave válida con cuota disponible. Las pruebas con dobles no cuentan como evidencia generativa real.'
     : `En estos ${cases.length} casos, el motor tradicional obtuvo ${summary.traditional.accuracyPercent}% de aciertos y el generativo ${summary.generative.accuracyPercent}%. El acierto exige categoría, prioridad y revisión humana correctas, además del contrato válido. Esta muestra pequeña y diseñada para las reglas no permite generalizar. El generativo incluye una defensa determinista de seguridad, por lo que los resultados evalúan la solución completa, no solamente el modelo.`;
-  await fs.writeFile(path.join(out, 'comparison.json'), JSON.stringify({ generatedAt: new Date().toISOString(), provider: 'Ollama', model: process.env.OLLAMA_MODEL || 'qwen2.5:1.5b', summary, conclusion, results }, null, 2));
+  await fs.writeFile(path.join(out, 'comparison.json'), JSON.stringify({ generatedAt: new Date().toISOString(), provider: 'Gemini', model: process.env.GEMINI_MODEL || generative.DEFAULT_MODEL, summary, conclusion, results }, null, 2));
   const csv = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const header = ['id', 'mode', 'message', 'expectedCategory', 'expectedPriority', 'expectedReview', 'category', 'priority', 'requiresHumanReview', 'formatValid', 'correct', 'elapsedMs', 'error'];
   const lines = results.map(row => [row.id, row.mode, row.message, row.reference.category, row.reference.priority, row.reference.requiresHumanReview, row.actual?.category, row.actual?.priority, row.actual?.requiresHumanReview, row.formatValid, row.correct, row.elapsedMs, row.error].map(csv).join(','));

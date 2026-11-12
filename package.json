@@ -2,7 +2,7 @@
   "name": "ai-support-engine",
   "version": "1.0.0",
   "private": true,
-  "description": "Prototipo de soporte con reglas e IA generativa real mediante Ollama",
+  "description": "Prototipo de soporte con reglas e IA generativa real mediante Gemini API",
   "engines": { "node": ">=22.9" },
   "scripts": {
     "start": "node --env-file-if-exists=.env src/server.js",

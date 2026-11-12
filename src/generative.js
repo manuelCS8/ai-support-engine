@@ -2,6 +2,7 @@
 
 const { schema, validResult, validateMessage } = require('./contract');
 const traditional = require('./traditional');
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 class ProviderError extends Error {
   constructor(code, message, status = 502) {
@@ -20,38 +21,61 @@ Devuelve solamente el objeto JSON del esquema solicitado, con mode="generative" 
 // La inyección de fetch se usa únicamente en pruebas; producción llama al proveedor real.
 function createAnalyzer({
   fetchImpl = globalThis.fetch,
-  baseUrl = process.env.OLLAMA_URL || 'http://127.0.0.1:11434',
-  model = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b',
-  timeoutMs = Number(process.env.OLLAMA_TIMEOUT_MS || 120000),
+  apiKey = process.env.GEMINI_API_KEY || '',
+  model = process.env.GEMINI_MODEL || DEFAULT_MODEL,
+  timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 60000),
 } = {}) {
-  const url = new URL(baseUrl);
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-    throw new Error('OLLAMA_URL debe ser una URL HTTP(S) sin credenciales, consulta ni fragmento.');
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 300000
+    || typeof model !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(model)) {
+    throw new ProviderError('INVALID_PROVIDER_CONFIG', 'Revise GEMINI_MODEL y GEMINI_TIMEOUT_MS (1 a 300000).', 503);
   }
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || !model.trim()) throw new Error('Configuración de Ollama inválida.');
+  // Destino fijo: la clave se envía sólo a Google, nunca en la URL o al navegador.
+  const url = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`);
   return async function analyze(message) {
     validateMessage(message);
+    if (typeof apiKey !== 'string' || !apiKey.trim()) {
+      throw new ProviderError('MISSING_API_KEY', 'Configure GEMINI_API_KEY en el archivo .env del servidor y reinícielo.', 503);
+    }
     let data;
     try {
-      const response = await fetchImpl(new URL('/api/chat', url), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const response = await fetchImpl(url, {
+        method: 'POST', redirect: 'error',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
         signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({
-          model, stream: false, format: schema, options: { temperature: 0 },
-          messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: message }],
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents: [{ role: 'user', parts: [{ text: message }] }],
+          generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema },
         }),
       });
-      if (!response.ok) throw new ProviderError('PROVIDER_HTTP_ERROR', 'Ollama rechazó la solicitud. Compruebe que el modelo esté descargado.', 503);
-      data = await response.json();
+      if (!response.ok) {
+        if ([401, 403].includes(response.status)) throw new ProviderError('PROVIDER_AUTH_ERROR', 'Gemini rechazó el acceso. Revise la clave y los permisos de su proyecto en Google AI Studio.', 503);
+        if (response.status === 429) throw new ProviderError('PROVIDER_RATE_LIMIT', 'Gemini alcanzó el límite de uso o cuota. Revise su cuota y vuelva a intentarlo más tarde.', 429);
+        if (response.status === 404) throw new ProviderError('PROVIDER_MODEL_NOT_FOUND', 'El modelo configurado no está disponible. Revise GEMINI_MODEL en .env.', 503);
+        throw new ProviderError('PROVIDER_HTTP_ERROR', 'Gemini rechazó la solicitud. Revise la configuración del proveedor.', 503);
+      }
+      try { data = await response.json(); }
+      catch { throw new ProviderError('INVALID_MODEL_OUTPUT', 'Gemini no devolvió una respuesta JSON válida.'); }
     } catch (error) {
       if (error instanceof ProviderError) throw error;
       if (['TimeoutError', 'AbortError'].includes(error.name)) {
-        throw new ProviderError('PROVIDER_TIMEOUT', 'Ollama excedió el tiempo de respuesta.', 504);
+        throw new ProviderError('PROVIDER_TIMEOUT', 'Gemini excedió el tiempo de respuesta.', 504);
       }
-      throw new ProviderError('PROVIDER_UNAVAILABLE', 'No se pudo consultar Ollama. Compruebe que esté iniciado y revise su configuración.', 503);
+      throw new ProviderError('PROVIDER_UNAVAILABLE', 'No se pudo consultar Gemini. Revise la conexión a internet y la configuración del servidor.', 503);
+    }
+    const candidate = data?.candidates?.[0];
+    if (data?.promptFeedback?.blockReason || candidate?.finishReason === 'SAFETY') {
+      throw new ProviderError('MODEL_BLOCKED', 'Gemini bloqueó la generación. Reformule el reporte sin incluir datos sensibles.');
+    }
+    // No aceptar salidas truncadas ni partes internas de razonamiento.
+    if (candidate?.finishReason !== 'STOP' || !Array.isArray(candidate?.content?.parts)) {
+      throw new ProviderError('INVALID_MODEL_OUTPUT', 'Gemini no devolvió una respuesta completa.');
     }
     let result;
-    try { result = JSON.parse(data.message.content); } catch {
+    try {
+      const text = candidate.content.parts.filter(part => part && part.thought !== true && typeof part.text === 'string').map(part => part.text).join('');
+      result = JSON.parse(text);
+    } catch {
       throw new ProviderError('INVALID_MODEL_OUTPUT', 'El modelo no devolvió JSON válido.');
     }
     if (!validResult(result, 'generative')) {
@@ -74,4 +98,4 @@ function createAnalyzer({
 }
 
 async function analyze(message) { return createAnalyzer()(message); }
-module.exports = { analyze, createAnalyzer, ProviderError };
+module.exports = { analyze, createAnalyzer, ProviderError, DEFAULT_MODEL };

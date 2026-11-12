@@ -4,4 +4,4 @@ Ejecute `npm run compare` para generar `comparison.json`, `comparison.csv` y `co
 
 Los 12 casos de referencia se definen previamente en `tests/cases.json`: incluyen casos normales, dos ambiguos y dos intentos de manipulación. El acierto exige coincidencia de categoría, prioridad y revisión humana, y formato válido. Los errores cuentan como casos no acertados; si el proveedor nunca responde, la exactitud generativa se registra como `null` (no evaluable). Se conserva cada error explícitamente.
 
-El generativo siempre consulta Ollama de verdad. Si no está disponible, la comparación termina con código 1 y una conclusión de evaluación incompleta. No se inventan resultados ni se sustituyen por respuestas del motor tradicional.
+El generativo consulta Gemini de verdad cuando hay una clave configurada. Si falta la clave, la conexión o la cuota, la comparación termina con código 1 y una conclusión de evaluación incompleta. No se inventan resultados ni se sustituyen por respuestas del motor tradicional. La clave nunca se incluye en las evidencias.

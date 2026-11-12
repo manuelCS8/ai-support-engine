@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const { createServer } = require('../src/server');
 const { ProviderError } = require('../src/generative');
+const { createAnalyzer } = require('../src/generative');
 
 async function running(t, options = {}) {
   const server = createServer(options);
@@ -81,4 +82,18 @@ test('Rechaza contratos rotos devueltos por un motor', async t => {
   const base = await running(t, { generativeAnalyze: async () => ({ category: 'BUG' }) });
   const response = await post(base, { message: 'Error', mode: 'generative' });
   assert.equal(response.status, 502);
+});
+
+test('La API informa que falta la clave sin exponer configuración al navegador', async t => {
+  const base = await running(t, { generativeAnalyze: createAnalyzer({ apiKey: '' }) });
+  const response = await post(base, { message: 'Error al guardar', mode: 'generative' });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, 'MISSING_API_KEY');
+});
+
+test('La API conserva el error de cuota de Gemini', async t => {
+  const base = await running(t, { generativeAnalyze: createAnalyzer({ apiKey: 'clave-ficticia-solo-pruebas', fetchImpl: async () => ({ ok: false, status: 429 }) }) });
+  const response = await post(base, { message: 'Error al guardar', mode: 'generative' });
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).error.code, 'PROVIDER_RATE_LIMIT');
 });
